@@ -1,5 +1,6 @@
 const video = document.getElementById("video");
 const container = document.querySelector(`.mainCont`);
+const message = document.querySelector(`.message`);
 
 let lastVideoIntervalInstance;
 
@@ -20,6 +21,8 @@ Promise.all([
 ]).then(startVideo);
 
 function startVideo() {
+  message.textContent =
+    "Detecting face... Please position your face at the center of the camera.";
   navigator.getUserMedia(
     { video: {} },
     (stream) => (video.srcObject = stream),
@@ -33,7 +36,7 @@ video.addEventListener("play", async () => {
   const displaySize = { width: video.width, height: video.height };
   faceapi.matchDimensions(canvas, displaySize);
 
-  let img = await faceapi.fetchImage("./image/me.jpg");
+  let img = await faceapi.fetchImage("./image/me.jpg"); //face image to train
   const imageData = await faceapi
     .detectSingleFace(img)
     .withFaceLandmarks()
@@ -53,12 +56,16 @@ video.addEventListener("play", async () => {
     console.log(detectorTracker);
 
     if (detectorTracker.iteration < 20) {
-      if (detections[0] && faceDescription) {
-        predefinedDescriptorSamples.push(detections[0].descriptor);
-        detectedDescriptorSamples.push(faceDescription.descriptor);
+      if (detections[0]) {
+        if (faceDescription) {
+          predefinedDescriptorSamples.push(detections[0].descriptor);
+          detectedDescriptorSamples.push(faceDescription.descriptor);
 
-        detectorTracker.iteration++;
-      }
+          detectorTracker.iteration++;
+        }
+      } else
+        message.textContent =
+          "face not found... Please position your face at the center of the camera.";
     } else testSamples();
   }, 60);
 });
@@ -69,12 +76,15 @@ function testSamples() {
   });
 
   if (detectorTracker["person 1"] > detectorTracker["unknown"]) {
-    console.log("logged in!");
+    message.textContent = "face match! redirecting...";
+    setTimeout(() => {
+      window.location = "http://localhost:8000/login/admin/123456";
+      container.style.display = "none";
+    }, 4000);
     clearInterval(lastVideoIntervalInstance);
     lastVideoIntervalInstance = null;
-    container.style.display = "none";
   } else {
-    console.log("face didn't match");
+    message.textContent = "face mismatch!";
   }
   resetTracker();
 }
@@ -95,3 +105,18 @@ function resetTracker() {
   predefinedDescriptorSamples = [];
   detectedDescriptorSamples = [];
 }
+
+//
+// let imageStore = [];
+// function preview_image(event) {
+//   document.getElementById("output_image").style.display = "block";
+//   var reader = new FileReader();
+//   reader.onload = function () {
+//     var output = document.getElementById("output_image");
+
+//     imageStore.push(reader.result);
+//     console.log(reader, imageStore);
+//     output.src = imageStore[0];
+//   };
+//   reader.readAsDataURL(event.target.files[0]);
+// }

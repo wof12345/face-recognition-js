@@ -4,6 +4,7 @@
   position: relative;
   box-sizing: border-box;
   transition: 0.5s;
+  font-family: "Sono", sans-serif;
 }
 
 body {
@@ -32,6 +33,24 @@ input {
 
 canvas {
   position: absolute;
+  max-width: 100%;
   top: 0;
   left: 0;
+}
+
+.message {
+  font-size: 15px;
+  padding: 16px;
+  border-radius: 15px;
+  border: 1px solid black;
+  max-width: 500px;
+}
+
+.options {
+  position: absolute;
+  background: rgba(110, 108, 108, 0.979);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
 }
