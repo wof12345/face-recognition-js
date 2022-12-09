@@ -4,14 +4,16 @@ const message = document.querySelector(`.message`);
 
 let lastVideoIntervalInstance;
 
-let predefinedDescriptorSamples = [];
 let detectedDescriptorSamples = [];
+let predefindeDescriptorSamples = [];
+
+let predefinedImageArray = ["./image/me.jpg", "./image/t.jpg"];
 
 let detectorTracker = {
-  "person 1": 0,
   unknown: 0,
   iteration: 0,
 };
+let faceDetected = false;
 
 Promise.all([
   faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
@@ -21,8 +23,10 @@ Promise.all([
 ]).then(startVideo);
 
 function startVideo() {
-  message.textContent =
-    "Detecting face... Please position your face at the center of the camera.";
+  predefinedImageArray.forEach((elm, ind) => {
+    getImageData(elm, ind);
+  });
+  message.textContent = "Loading...";
   navigator.getUserMedia(
     { video: {} },
     (stream) => (video.srcObject = stream),
@@ -36,13 +40,6 @@ video.addEventListener("play", async () => {
   const displaySize = { width: video.width, height: video.height };
   faceapi.matchDimensions(canvas, displaySize);
 
-  let img = await faceapi.fetchImage("./image/me.jpg"); //face image to train
-  const imageData = await faceapi
-    .detectSingleFace(img)
-    .withFaceLandmarks()
-    .withFaceDescriptor();
-
-  let faceDescription = faceapi.resizeResults(imageData, img);
   lastVideoIntervalInstance = setInterval(async () => {
     const detections = await faceapi
       .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -53,57 +50,84 @@ video.addEventListener("play", async () => {
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
     faceapi.draw.drawDetections(canvas, resizedDetections);
 
-    console.log(detectorTracker);
-
     if (detectorTracker.iteration < 20) {
-      if (detections[0]) {
-        if (faceDescription) {
-          predefinedDescriptorSamples.push(detections[0].descriptor);
-          detectedDescriptorSamples.push(faceDescription.descriptor);
+      if (!faceDetected) {
+        message.textContent =
+          "Detecting face... Please position your face at the center of the camera.";
+        if (detections[0]) {
+          detectedDescriptorSamples.push(detections[0].descriptor);
 
           detectorTracker.iteration++;
-        }
-      } else
-        message.textContent =
-          "face not found... Please position your face at the center of the camera.";
+        } else
+          message.textContent =
+            "face not found... Please position your face at the center of the camera.";
+      }
     } else testSamples();
   }, 60);
 });
 
 function testSamples() {
-  predefinedDescriptorSamples.forEach((elm, ind) => {
-    findBestMatch(elm, detectedDescriptorSamples[ind]);
-  });
+  predefindeDescriptorSamples.forEach((element, index) => {
+    detectedDescriptorSamples.forEach((elm, ind) => {
+      findBestMatch(elm, element, `person ${index}`);
+    });
+    console.log(detectorTracker[`person ${index}`]);
 
-  if (detectorTracker["person 1"] > detectorTracker["unknown"]) {
-    message.textContent = "face match! redirecting...";
-    setTimeout(() => {
-      window.location = "http://localhost:8000/login/admin/123456";
-      container.style.display = "none";
-    }, 4000);
-    clearInterval(lastVideoIntervalInstance);
-    lastVideoIntervalInstance = null;
-  } else {
-    message.textContent = "face mismatch!";
-  }
+    if (detectorTracker[`person ${index}`] > detectorTracker["unknown"]) {
+      faceDetected = true;
+      message.textContent = `face match for person ${index}! redirecting...`;
+      console.log(detectorTracker);
+
+      console.log(predefindeDescriptorSamples);
+
+      setTimeout(() => {
+        // window.location = "http://localhost:8000/login/admin/123456";
+        // container.style.display = "none";
+      }, 4000);
+      clearInterval(lastVideoIntervalInstance);
+      lastVideoIntervalInstance = null;
+    } else {
+      if (!faceDetected) message.textContent = "face mismatch!";
+    }
+  });
   resetTracker();
 }
 
-function findBestMatch(data1, data2) {
-  const threshold = 0.6;
-  const faceMatcher = new faceapi.FaceMatcher(data1, threshold);
+function findBestMatch(data1, data2, person) {
+  if (data1 !== undefined && data2 !== undefined) {
+    const threshold = 0.6;
+    const faceMatcher = new faceapi.FaceMatcher(data1, threshold);
 
-  let data = faceMatcher.findBestMatch(data2);
+    let data = faceMatcher.findBestMatch(data2);
 
-  detectorTracker[data._label]++;
+    if (data._label === "person 1") detectorTracker[person]++;
+  }
 }
 
 function resetTracker() {
   detectorTracker.iteration = 0;
-  detectorTracker["person 1"] = 0;
+  predefindeDescriptorSamples.forEach((element, index) => {
+    detectorTracker[`person ${index}`] = 0;
+  });
   detectorTracker.unknown = 0;
-  predefinedDescriptorSamples = [];
   detectedDescriptorSamples = [];
+}
+
+async function getImageData(imagePath, index) {
+  let img = await faceapi.fetchImage(imagePath); //face image to train
+  const imageData = await faceapi
+    .detectSingleFace(img)
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  // console.log(imageData);
+  let faceDescription = faceapi.resizeResults(imageData, img).descriptor;
+
+  predefindeDescriptorSamples.push(faceDescription);
+  detectorTracker[`person ${index}`] = 0;
+
+  console.log(predefindeDescriptorSamples);
+  console.log(detectorTracker);
 }
 
 //
